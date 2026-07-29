@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MedLink intake assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #eef2f0;
+    --surface: #ffffff;
+    --ink: #172420;
+    --ink-2: #4b5a54;
+    --border: #d7ded9;
+    --teal: #146356;
+    --teal-tint: #e1ede9;
+    --stated-bg: #e4f1e7; --stated-text: #205c36; --stated-border: #3f8556;
+    --inferred-bg: #fbf0dd; --inferred-text: #8a5a12; --inferred-border: #c98a2e;
+    --unresolved-bg: #fbe7e4; --unresolved-text: #8c2e22; --unresolved-border: #c8493a;
+    --font-display: "Space Grotesk", sans-serif;
+    --font-body: "IBM Plex Sans", sans-serif;
+    --font-mono: "IBM Plex Mono", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #101613; --surface: #17201c; --ink: #e7ece9; --ink-2: #9aa8a2; --border: #2b3733;
+      --teal: #4fb39d; --teal-tint: #1c2b26;
+      --stated-bg: #16281c; --stated-text: #7fd39a; --stated-border: #3f8556;
+      --inferred-bg: #2b2210; --inferred-text: #e3b25c; --inferred-border: #c98a2e;
+      --unresolved-bg: #2c1714; --unresolved-text: #ec8f81; --unresolved-border: #c8493a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); }
+  .app { max-width: 1180px; margin: 0 auto; padding: 20px; }
+
+  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 16px; }
+  .brand { display: flex; align-items: baseline; gap: 10px; }
+  .brand h1 { font-family: var(--font-display); font-weight: 600; font-size: 18px; margin: 0; letter-spacing: 0.01em; }
+  .brand span { font-size: 12px; color: var(--ink-2); font-family: var(--font-mono); }
+  .urgency { font-family: var(--font-mono); font-size: 12px; padding: 5px 10px; border-radius: 999px; border: 1px solid; }
+  .urgency.routine { background: var(--stated-bg); color: var(--stated-text); border-color: var(--stated-border); }
+  .urgency.soon { background: var(--inferred-bg); color: var(--inferred-text); border-color: var(--inferred-border); }
+  .urgency.urgent, .urgency.emergency { background: var(--unresolved-bg); color: var(--unresolved-text); border-color: var(--unresolved-border); }
+
+  .panes { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; align-items: start; }
+  @media (max-width: 860px) { .panes { grid-template-columns: 1fr; } }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .card h2 { font-family: var(--font-display); font-weight: 500; font-size: 14px; margin: 0; padding: 12px 16px;
+    border-bottom: 1px solid var(--border); color: var(--ink-2); text-transform: uppercase; letter-spacing: 0.06em; }
+
+  .chat-log { height: 440px; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .bubble { max-width: 78%; padding: 10px 13px; border-radius: 12px; font-size: 14px; line-height: 1.5; }
+  .bubble.patient { align-self: flex-end; background: var(--teal); color: #fff; border-bottom-right-radius: 3px; }
+  .bubble.assistant { align-self: flex-start; background: var(--teal-tint); color: var(--ink); border-bottom-left-radius: 3px; }
+  .bubble .tag { display: block; font-family: var(--font-mono); font-size: 10px; opacity: 0.7; margin-bottom: 3px; }
+
+  .composer { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border); }
+  .composer input[type=text] { flex: 1; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 14px; }
+  .composer input[type=text]:focus { outline: 2px solid var(--teal); outline-offset: 1px; }
+  button { font-family: var(--font-body); font-size: 13px; font-weight: 500; border: none; border-radius: 8px;
+    padding: 10px 14px; cursor: pointer; }
+  .btn-primary { background: var(--teal); color: #fff; }
+  .btn-primary:hover { opacity: 0.92; }
+  .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--ink-2); }
+  .btn-ghost:hover { border-color: var(--teal); color: var(--teal); }
+  input[type=file] { display: none; }
+
+  .fields { padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .field-row { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; cursor: pointer; }
+  .field-row .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .field-name { font-size: 12px; color: var(--ink-2); font-family: var(--font-mono); }
+  .field-value { font-size: 14px; margin-top: 2px; }
+  .badge { font-family: var(--font-mono); font-size: 10px; padding: 3px 7px; border-radius: 999px; border: 1px solid; white-space: nowrap; }
+  .badge.patient_stated { background: var(--stated-bg); color: var(--stated-text); border-color: var(--stated-border); }
+  .badge.inferred { background: var(--inferred-bg); color: var(--inferred-text); border-color: var(--inferred-border); }
+  .badge.unresolved, .badge.contradiction { background: var(--unresolved-bg); color: var(--unresolved-text); border-color: var(--unresolved-border); }
+
+  .provenance { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); font-family: var(--font-mono);
+    font-size: 11px; color: var(--ink-2); display: none; white-space: pre-wrap; }
+  .field-row.open .provenance { display: block; }
+
+  .empty { padding: 24px 16px; color: var(--ink-2); font-size: 13px; text-align: center; }
+  .mode-note { font-family: var(--font-mono); font-size: 11px; color: var(--ink-2); padding: 8px 16px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="brand">
+      <h1>MedLink intake assistant</h1>
+      <span id="session-label">session: connecting…</span>
+    </div>
+    <div class="urgency routine" id="urgency-badge">routine</div>
+  </div>
+
+  <div class="panes">
+    <div class="card">
+      <h2>Patient conversation</h2>
+      <div class="mode-note" id="mode-note"></div>
+      <div class="chat-log" id="chat-log"></div>
+      <div class="composer">
+        <label class="btn-ghost" for="file-input">Attach file</label>
+        <input type="file" id="file-input" accept="application/pdf">
+        <input type="text" id="msg-input" placeholder="Describe your symptom…">
+        <button class="btn-primary" id="send-btn">Send</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Structured intake summary</h2>
+      <div class="fields" id="fields-list">
+        <div class="empty">No fields logged yet — they'll appear here as the conversation progresses.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_BASE = "http://localhost:8000";
+let sessionId = null;
+let demoMode = false;
+let demoStep = 0;
+
+const chatLog = document.getElementById("chat-log");
+const fieldsList = document.getElementById("fields-list");
+const sessionLabel = document.getElementById("session-label");
+const modeNote = document.getElementById("mode-note");
+const urgencyBadge = document.getElementById("urgency-badge");
+
+function addBubble(speaker, text) {
+  const el = document.createElement("div");
+  el.className = "bubble " + speaker;
+  el.innerHTML = `<span class="tag">${speaker === "patient" ? "you" : "assistant"}</span>${text}`;
+  chatLog.appendChild(el);
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+function renderFields(fields) {
+  fieldsList.innerHTML = "";
+  const names = Object.keys(fields || {});
+  if (!names.length) {
+    fieldsList.innerHTML = '<div class="empty">No fields logged yet — they\'ll appear here as the conversation progresses.</div>';
+    return;
+  }
+  names.forEach(name => {
+    const f = fields[name];
+    const row = document.createElement("div");
+    row.className = "field-row";
+    const badgeClass = f.contradiction_with ? "contradiction" : f.status;
+    const badgeText = f.contradiction_with ? "conflict" : f.status.replace("_", " ");
+    row.innerHTML = `
+      <div class="top">
+        <div>
+          <div class="field-name">${name.replace(/_/g, " ")}</div>
+          <div class="field-value">${f.value ?? "—"}</div>
+        </div>
+        <span class="badge ${badgeClass}">${badgeText}</span>
+      </div>
+      <div class="provenance">${(f.sources || []).map(s => `[${s.kind}:${s.ref_id}] "${s.snippet}"`).join("\n") || f.confidence_note || ""}</div>
+    `;
+    row.addEventListener("click", () => row.classList.toggle("open"));
+    fieldsList.appendChild(row);
+  });
+}
+
+function setUrgency(level) {
+  urgencyBadge.textContent = level;
+  urgencyBadge.className = "urgency " + level;
+}
+
+async function init() {
+  try {
+    const res = await fetch(`${API_BASE}/session`, { method: "POST" });
+    if (!res.ok) throw new Error("no backend");
+    const data = await res.json();
+    sessionId = data.session_id;
+    sessionLabel.textContent = "session: " + sessionId.slice(0, 8);
+    addBubble("assistant", "Hi, I'm here to take down your symptoms before your visit. What's brought you in today?");
+  } catch (e) {
+    demoMode = true;
+    sessionLabel.textContent = "session: demo (offline)";
+    modeNote.textContent = "Demo mode — no backend connected. Responses below are scripted to show the three ambiguity/contradiction patterns.";
+    addBubble("assistant", "Hi, I'm here to take down your symptoms before your visit. What's brought you in today?");
+  }
+}
+
+// Scripted fallback so the UI is demoable without a live backend.
+// Mirrors the three required transcript patterns: ambiguity, contradiction, resolved-via-memory.
+const DEMO_SCRIPT = [
+  {
+    reply: "Got it — when you say the pain is back again, can you tell me where exactly, since I don't have that noted from before?",
+    fields: { pain_location: { value: null, status: "unresolved", sources: [], confidence_note: "Patient said 'the pain is back' without specifying location; no prior record to resolve it." } },
+    urgency: "routine"
+  },
+  {
+    reply: "Thanks — lower back pain, noted. Also, last visit you mentioned no history of back issues, but this sounds related. Just to confirm: is this the same lower back pain from before, or something new?",
+    fields: {
+      pain_location: { value: "lower back", status: "patient_stated", sources: [{ kind: "message", ref_id: "turn-2", snippet: "it's in my lower back" }], confidence_note: "Directly stated by patient." },
+      pain_history: { value: "recurring", status: "patient_stated", contradiction_with: { kind: "prior_visit", ref_id: "visit-114" }, sources: [{ kind: "message", ref_id: "turn-2", snippet: "it's back again" }], confidence_note: "Conflicts with prior visit record of 'no history of back issues' — surfaced, not overwritten." }
+    },
+    urgency: "soon"
+  },
+  {
+    reply: "Understood, thanks for confirming. I already have your allergy info from the referral letter you uploaded, so I won't ask again there. Based on everything so far, I'll flag this for a routine physician review — nothing urgent stands out.",
+    fields: {
+      pain_location: { value: "lower back", status: "patient_stated", sources: [{ kind: "message", ref_id: "turn-2", snippet: "it's in my lower back" }], confidence_note: "Directly stated by patient." },
+      pain_history: { value: "recurring, same site as visit-114", status: "patient_stated", sources: [{ kind: "message", ref_id: "turn-3", snippet: "yeah same one as before" }], confidence_note: "Patient confirmed after contradiction was surfaced." },
+      allergies: { value: "penicillin", status: "patient_stated", sources: [{ kind: "document", ref_id: "referral-letter.pdf", snippet: "Known allergy: penicillin" }], confidence_note: "Found in uploaded referral letter — not re-asked." }
+    },
+    urgency: "routine"
+  }
+];
+
+async function sendMessage() {
+  const input = document.getElementById("msg-input");
+  const text = input.value.trim();
+  if (!text) return;
+  addBubble("patient", text);
+  input.value = "";
+
+  if (demoMode) {
+    const step = DEMO_SCRIPT[Math.min(demoStep, DEMO_SCRIPT.length - 1)];
+    demoStep++;
+    setTimeout(() => {
+      addBubble("assistant", step.reply);
+      const merged = {};
+      Object.assign(merged, step.fields);
+      renderFields(merged);
+      setUrgency(step.urgency);
+    }, 400);
+    return;
+  }
+
+  const res = await fetch(`${API_BASE}/message`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session_id: sessionId, text })
+  });
+  const data = await res.json();
+  addBubble("assistant", data.reply);
+  setUrgency(data.urgency);
+  refreshSummary();
+}
+
+async function refreshSummary() {
+  if (demoMode || !sessionId) return;
+  const res = await fetch(`${API_BASE}/summary/${sessionId}`);
+  const data = await res.json();
+  renderFields(data.fields);
+  setUrgency(data.urgency);
+}
+
+document.getElementById("send-btn").addEventListener("click", sendMessage);
+document.getElementById("msg-input").addEventListener("keydown", e => { if (e.key === "Enter") sendMessage(); });
+document.getElementById("file-input").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (demoMode) {
+    addBubble("patient", `[attached ${file.name}]`);
+    setTimeout(() => addBubble("assistant", `Got your file — I'll pull from it before asking you to repeat anything it already covers.`), 300);
+    return;
+  }
+  const form = new FormData();
+  form.append("file", file);
+  addBubble("patient", `[attached ${file.name}]`);
+  await fetch(`${API_BASE}/upload/${sessionId}`, { method: "POST", body: form });
+  addBubble("assistant", "Got your file — I'll pull from it before asking you to repeat anything it already covers.");
+});
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+anthropic
+scikit-learn
+pdfplumber
+pytesseract
+pdf2image
+python-multipart

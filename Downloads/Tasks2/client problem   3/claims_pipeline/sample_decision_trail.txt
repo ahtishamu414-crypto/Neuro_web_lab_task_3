@@ -1,0 +1,46 @@
+=== Decision trail: CF-55210 ===
+
+-- Documents ingested --
+  policy_AX-88213.pdf [policy] (ocr_quality=high)
+    - collision_coverage_limit = 6000 [high] <- policy_AX-88213.pdf (p.3, Section 4.2)
+    - deductible = 500 [high] <- policy_AX-88213.pdf (p.3, Section 4.2)
+    - rental_reimbursement_eligible = false [high] <- policy_AX-88213.pdf (p.3, Section 4.5)
+  claim_form_CF-55210.pdf [claim_form] (ocr_quality=high)
+    - claimed_repair_amount = 5850 [high] <- claim_form_CF-55210.pdf (p.1, body)
+    - incident_date = 2026-03-14 [high] <- claim_form_CF-55210.pdf (p.1, body)
+    - rental_requested_days = 10 [high] <- claim_form_CF-55210.pdf (p.1, body)
+  invoice_lakeside_body.pdf [invoice] (ocr_quality=high)
+    - invoice_total = 5850 [high] <- invoice_lakeside_body.pdf (p.1, Total line)
+    - line_bumper = 1450 [high] <- invoice_lakeside_body.pdf (p.1, Line 1)
+    - line_trunk_panel = 1300 [high] <- invoice_lakeside_body.pdf (p.1, Line 2)
+    - line_labor = 1330 [medium] <- invoice_lakeside_body.pdf (p.1, Line 3)
+    - line_parts = 1770 [medium] <- invoice_lakeside_body.pdf (p.1, Line 4)
+  independent_estimate_QuickAppraise.pdf [damage_report] (ocr_quality=high)
+    - independent_estimate_total = 2950 [high] <- independent_estimate_QuickAppraise.pdf (p.1, body)
+
+-- Cross-document discrepancies --
+  [MAJOR] Claimed/invoiced repair amount ($5,850) is roughly double the independent damage assessment for the same described damage ($2,950), with no explanation on file for the gap.
+    sources: invoice_lakeside_body.pdf (p.1, Total line); independent_estimate_QuickAppraise.pdf (p.1, body)
+  [MINOR] Rental car was requested on the claim form (10 days) but the policy has no rental reimbursement rider on file.
+    sources: claim_form_CF-55210.pdf (p.1, body); policy_AX-88213.pdf (p.3, Section 4.5)
+
+-- Coverage findings --
+  Collision repair (bumper + trunk panel): covered=True [high]
+    rationale: Collision damage is covered up to $6,000/incident with a $500 deductible; the claimed $5,850 falls within the cap, so coverage of the repair category applies. Note: this determination covers eligibility, not the disputed dollar amount -- see fraud/discrepancy findings.
+    citation: policy_AX-88213.pdf (p.3, Section 4.2)
+  Rental car reimbursement (10 days): covered=False [high]
+    rationale: Rental reimbursement requires rider AX-RC-100, which is not on file for this policy.
+    citation: policy_AX-88213.pdf (p.3, Section 4.5)
+
+-- Fraud assessment --
+  Fraud risk score: 68/100
+    [+45] Invoice vs. independent estimate gap: Invoiced total is ~98% higher than the independent assessment for the same described damage. (independent_estimate_QuickAppraise.pdf (p.1, body))
+    [+13] Round, high labor/parts split: Labor and parts line items are unusually high relative to the two structural repair lines for this scope of damage. (invoice_lakeside_body.pdf (p.1, Line 3-4))
+    [+10] Rental request despite no rider: Rental reimbursement was requested despite no rider being on file; may be an oversight rather than fraud, kept as a minor signal. (claim_form_CF-55210.pdf (p.1, body))
+
+-- Unresolved flags (confidence gate) --
+  none
+
+-- Routing decision --
+  fraud_investigation
+  Rationale: Fraud score 68 >= threshold 60. Routed to fraud investigation regardless of other findings.
